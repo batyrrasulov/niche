@@ -9,6 +9,8 @@ node_modules/
 dist/
 coverage/
 frontend/.vite/
+frontend/*.tsbuildinfo
 backend/.ruff_cache/
 backend/.coverage
+backend/*.db
 logs/
