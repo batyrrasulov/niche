@@ -5,9 +5,11 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from dependencies import get_current_user
-from models import Message, SourceDocument, Thread, Workspace, User
+from models import MCPConnection, Message, SourceDocument, Thread, Workspace, User
 from schemas import ChatRequest, ThreadCreate, ThreadOut
+from services_mcp import discover_tools, execute_tool
 from services_retrieval import retrieve_top_sources
+from services_web import search_web
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/threads")
 
@@ -64,7 +66,7 @@ def list_messages(
 
 
 @router.post("/{thread_id}/messages")
-def chat_stream(
+async def chat_stream(
     workspace_id: int,
     thread_id: int,
     payload: ChatRequest,
@@ -79,17 +81,87 @@ def chat_stream(
 
     docs = db.query(SourceDocument).filter(SourceDocument.workspace_id == workspace_id).all()
     citations = retrieve_top_sources(payload.content, docs, limit=4)
-    answer = (
-        "NicheGPT answer based on your workspace data.\n\n"
-        f"Question: {payload.content}\n\n"
-        "Top grounded sources:\n"
-        + "\n".join([f"- {c['title']} (score={c['score']})" for c in citations if c["score"] > 0])
-    )
-    tool_events = []
+    tool_events: list[dict] = [
+        {
+            "type": "retrieval",
+            "status": "completed",
+            "metadata": {"candidate_sources": len(docs), "grounded_sources": len(citations)},
+        }
+    ]
+
+    web_results: list[dict] = []
     if payload.use_web:
-        tool_events.append({"type": "web_search", "status": "completed"})
+        try:
+            web_results = await search_web(payload.content, limit=3)
+            tool_events.append(
+                {
+                    "type": "web_search",
+                    "status": "completed" if web_results else "no_results",
+                    "metadata": {"results": len(web_results)},
+                }
+            )
+        except Exception as exc:
+            tool_events.append({"type": "web_search", "status": "failed", "error": str(exc)})
+    else:
+        tool_events.append({"type": "web_search", "status": "skipped"})
+
+    mcp_snapshot: dict = {}
     if payload.use_mcp:
-        tool_events.append({"type": "mcp_capability_scan", "status": "completed"})
+        connection = (
+            db.query(MCPConnection)
+            .filter(MCPConnection.workspace_id == workspace_id, MCPConnection.enabled.is_(True))
+            .order_by(MCPConnection.created_at.asc())
+            .first()
+        )
+        if not connection:
+            tool_events.append({"type": "mcp_action", "status": "skipped", "metadata": {"reason": "no_connection"}})
+        else:
+            try:
+                tools = connection.tools_json or []
+                if not tools:
+                    tools = await discover_tools(connection)
+                    connection.tools_json = tools
+                    db.commit()
+                if not tools:
+                    tool_events.append(
+                        {"type": "mcp_action", "status": "skipped", "metadata": {"reason": "no_tools_discovered"}}
+                    )
+                else:
+                    tool_name = tools[0].get("name") or tools[0].get("tool_name") or "unknown_tool"
+                    mcp_snapshot = await execute_tool(connection, tool_name, {})
+                    tool_events.append(
+                        {
+                            "type": "mcp_action",
+                            "status": "completed",
+                            "metadata": {"connection": connection.name, "tool_name": tool_name},
+                        }
+                    )
+            except Exception as exc:
+                tool_events.append({"type": "mcp_action", "status": "failed", "error": str(exc)})
+    else:
+        tool_events.append({"type": "mcp_action", "status": "skipped"})
+
+    grounded = [c for c in citations if c["score"] > 0]
+    grounded_lines = (
+        "\n".join([f"- {c['title']} (score={c['score']})" for c in grounded]) if grounded else "- No direct matches."
+    )
+    web_lines = (
+        "\n".join([f"- {item.get('title', 'result')} ({item.get('url', 'no-url')})" for item in web_results])
+        if web_results
+        else "- No web context."
+    )
+    mcp_line = f"- MCP result keys: {', '.join(sorted(mcp_snapshot.keys()))}" if mcp_snapshot else "- No MCP output."
+    answer = (
+        "Niche answer based on orchestrated stages.\n\n"
+        f"Question: {payload.content}\n\n"
+        "Grounded sources:\n"
+        f"{grounded_lines}\n\n"
+        "Web context:\n"
+        f"{web_lines}\n\n"
+        "MCP context:\n"
+        f"{mcp_line}\n"
+    )
+    tool_events.append({"type": "synthesis", "status": "completed"})
 
     assistant = Message(
         thread_id=thread_id,
