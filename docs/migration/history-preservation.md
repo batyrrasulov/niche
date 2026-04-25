@@ -1,0 +1,18 @@
+# History Preservation Strategy
+
+NicheGPT is built directly in `/Users/batyr.rasulov/nichegpt` to preserve clean, app-specific history from the first commit.
+
+## Policy
+
+1. Keep monorepo references read-only.
+2. Build, test, and commit only in this standalone repository.
+3. Use topic branches and merge commits to preserve feature progression.
+4. Never rewrite shared monorepo history to extract this app.
+
+## Publish steps
+
+1. Initialize `git` in `/Users/batyr.rasulov/nichegpt`.
+2. Commit baseline scaffold.
+3. Commit each feature set as separate logical commits.
+4. Add personal GitHub remote.
+5. Push branch and open PR/review flow.
