@@ -21,9 +21,7 @@ Niche is an agentic workspace where you can ground answers in your own sources, 
 
 ## Walkthrough
 
-- Demo video file: [`walkthrough.mov`](./walkthrough.mov)
-
-<video src="./walkthrough.mov" controls muted playsinline width="100%"></video>
+Add your own walkthrough media file here when ready.
 
 ## What Niche Is (Non-Technical)
 
@@ -188,7 +186,6 @@ flowchart TD
 - `server/` API routes, models, services, worker stubs
 - `src/` UI, API client, styling, and terminal UX logic
 - `system/` Docker Compose, Nginx, and systemd deployment artifacts
-- `walkthrough.mov` demo recording embedded in README
 - `.github/workflows/` CI workflow definitions
 
 ## Local Setup
