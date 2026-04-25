@@ -1,0 +1,19 @@
+[Unit]
+Description=NicheGPT API
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/opt/nichegpt/backend
+EnvironmentFile=/opt/nichegpt/.env
+ExecStart=/opt/nichegpt/backend/.venv/bin/uvicorn app:app --host 0.0.0.0 --port 8100
+Restart=always
+RestartSec=2
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
