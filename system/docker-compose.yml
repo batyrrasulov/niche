@@ -10,9 +10,9 @@ services:
     volumes:
       - niche_pg:/var/lib/postgresql/data
 
-  backend:
+  server:
     build:
-      context: ../backend
+      context: ../server
       dockerfile: Dockerfile
     env_file:
       - ../.env

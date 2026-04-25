@@ -31,7 +31,7 @@ Niche supports:
 Core runtime flow:
 
 1. User authenticates and selects a workspace/thread.
-2. User prompt enters orchestration pipeline in `backend/routes/threads.py`.
+2. User prompt enters orchestration pipeline in `server/routes/threads.py`.
 3. Pipeline runs staged execution:
    - Retrieval stage (workspace sources)
    - Optional web stage
@@ -47,18 +47,17 @@ Core runtime flow:
 
 ## Tech Stack
 
-- Backend: FastAPI, SQLAlchemy, Pydantic, SSE
-- Frontend: React, TypeScript, Vite
+- Server: FastAPI, SQLAlchemy, Pydantic, SSE
+- Client: React, TypeScript, Vite
 - Data: SQLite by default, Postgres/pgvector via Docker Compose
 - Auth: OAuth (Google/GitHub) + JWT
 - Infra: Docker Compose, Nginx, systemd
 
 ## Project Structure
 
-- `backend/` API routes, models, services, and worker stubs
-- `frontend/` terminal-first UI and API client
-- `infra/` local compose and production deployment artifacts
-- `docs/` architecture contracts, runbooks, migration notes
+- `server/` API routes, models, services, and worker stubs
+- `src/` terminal-first UI and API client
+- `system/` local compose and production deployment artifacts
 
 ## Local Setup
 
@@ -71,31 +70,31 @@ cp .env.example .env
 ### 2) Start dependencies
 
 ```bash
-docker compose -f infra/docker-compose.yml up -d postgres
+docker compose -f system/docker-compose.yml up -d postgres
 ```
 
-If Docker is not running, backend can still run against local SQLite defaults.
+If Docker is not running, the server can still run against local SQLite defaults.
 
-### 3) Start backend
+### 3) Start server
 
 ```bash
-cd backend
+cd server
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn app:app --reload --port 8100
 ```
 
-### 4) Start frontend
+### 4) Start client
 
 ```bash
-cd frontend
+cd src
 npm install
 npm run dev
 ```
 
 Frontend URL: `http://localhost:5173`  
-Backend health: `http://127.0.0.1:8100/health`
+Server health: `http://127.0.0.1:8100/health`
 
 ### 5) Acquire a token
 
@@ -150,13 +149,13 @@ Compatibility:
 Use this sequence after major changes:
 
 ```bash
-# frontend
-cd frontend && npm run build
+# client
+cd src && npm run build
 
-# backend syntax
-cd ../backend && source .venv/bin/activate && python -m compileall .
+# server syntax
+cd ../server && source .venv/bin/activate && python -m compileall .
 
-# backend health
+# server health
 curl http://127.0.0.1:8100/health
 ```
 
@@ -172,15 +171,15 @@ Integration smoke should validate:
 
 ## Troubleshooting
 
-### Backend not reachable on `8100`
+### Server not reachable on `8100`
 
-- Ensure backend process is running with `uvicorn`.
+- Ensure the server process is running with `uvicorn`.
 - Check `.env` for invalid DB URL.
 - If Docker is down and Postgres URL is configured, switch to SQLite or start Docker.
 
-### Frontend not reachable on `5173`
+### Client not reachable on `5173`
 
-- Restart `npm run dev` in `frontend/`.
+- Restart `npm run dev` in `src/`.
 - Confirm no port conflict.
 - Access via `http://localhost:5173` (hostname), not strict `127.0.0.1`, if local resolver settings differ.
 

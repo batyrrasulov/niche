@@ -329,10 +329,6 @@ export function App() {
                 <strong>{activeThread?.title ?? "none"}</strong>
               </li>
               <li>
-                <span>Gateway</span>
-                <strong>{connections.length ? "running" : "stopped"}</strong>
-              </li>
-              <li>
                 <span>Catalog</span>
                 <strong>{sources.length ? `${sources.length} sources` : "local only"}</strong>
               </li>

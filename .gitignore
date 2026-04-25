@@ -8,9 +8,10 @@ __pycache__/
 node_modules/
 dist/
 coverage/
-frontend/.vite/
-frontend/*.tsbuildinfo
-backend/.ruff_cache/
-backend/.coverage
-backend/*.db
+docs/
+src/.vite/
+src/*.tsbuildinfo
+server/.ruff_cache/
+server/.coverage
+server/*.db
 logs/
