@@ -268,6 +268,8 @@ export function App() {
   }, [appReady, activeWorkspace, activeThread, sources.length, connections.length, workflows.length, messages.length]);
 
   const runtimeHealth = streaming ? "Streaming" : appReady ? "Ready" : "Idle";
+  const authOnline = Boolean(sessionUser);
+  const runtimeUp = runtimeHealth === "Ready" || runtimeHealth === "Streaming";
   const artifacts = useMemo(
     () => [
       ...sources.slice(0, 3).map((source) => `source:${source.title}`),
@@ -276,6 +278,28 @@ export function App() {
     ],
     [sources, connections, workflows]
   );
+  const activityItems = useMemo(() => {
+    if (toolLog.length > 0) {
+      return toolLog.slice(-6).reverse().map((line) => {
+        const lowered = line.toLowerCase();
+        const status = lowered.includes("failed")
+          ? "error"
+          : lowered.includes("completed") || lowered.includes("installed") || lowered.includes("running")
+            ? "done"
+            : "current";
+        return { title: line, detail: status === "done" ? "Done" : status === "error" ? "Needs attention" : "In progress", status };
+      });
+    }
+
+    return flowSteps
+      .filter((step) => step.status !== "todo")
+      .slice(0, 6)
+      .map((step) => ({
+        title: step.label,
+        detail: step.status === "done" ? "Done" : "In progress",
+        status: step.status === "done" ? "done" : "current"
+      }));
+  }, [toolLog, flowSteps]);
 
   if (!appReady) {
     return (
@@ -300,8 +324,8 @@ export function App() {
           <p>Agentic RAG + MCP tools + workflow runtime</p>
         </div>
         <div className="top-meta">
-          <span className="pill">Auth: {sessionUser ? "Online" : "Token only"}</span>
-          <span className="pill">Runtime: {runtimeHealth}</span>
+          <span className={`pill ${authOnline ? "pill-up" : "pill-down"}`}>Auth: {authOnline ? "Online" : "Token only"}</span>
+          <span className={`pill ${runtimeUp ? "pill-up" : "pill-down"}`}>Runtime: {runtimeHealth}</span>
         </div>
       </header>
 
@@ -336,7 +360,7 @@ export function App() {
           </section>
 
           <section>
-            <h2>Active Runtime</h2>
+            <h2>Runtime</h2>
             <div className="group">
               <h3>Plugins</h3>
               <ul className="list">
@@ -406,14 +430,28 @@ export function App() {
 
         <aside className="panel">
           <section>
-            <h2>Flow Progress</h2>
-            <ol className="steps">
-              {flowSteps.map((step) => (
-                <li key={step.id} className={step.status === "done" ? "done" : step.status === "current" ? "current" : ""}>
-                  {step.label}
+            <h2>Activity</h2>
+            <ul className="activity-list">
+              {activityItems.length === 0 ? (
+                <li className="activity-item idle">
+                  <span className="activity-icon">○</span>
+                  <div>
+                    <p className="activity-title">No activity yet</p>
+                    <p className="activity-detail">Start by creating a workspace or sending a prompt.</p>
+                  </div>
                 </li>
-              ))}
-            </ol>
+              ) : (
+                activityItems.map((item, index) => (
+                  <li key={`${item.title}-${index}`} className={`activity-item ${item.status}`}>
+                    <span className="activity-icon">{item.status === "done" ? "✓" : item.status === "error" ? "!" : "•"}</span>
+                    <div>
+                      <p className="activity-title">{item.title}</p>
+                      <p className="activity-detail">{item.detail}</p>
+                    </div>
+                  </li>
+                ))
+              )}
+            </ul>
           </section>
 
           <section>

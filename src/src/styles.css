@@ -68,6 +68,15 @@ body {
   color: var(--muted);
 }
 
+.pill-up {
+  color: var(--ok);
+  border-color: rgba(204, 239, 216, 0.35);
+}
+
+.pill-down {
+  color: var(--muted);
+}
+
 .layout {
   margin-top: 8px;
   display: grid;
@@ -235,6 +244,67 @@ button.active {
 
 .steps li.current {
   color: var(--text);
+}
+
+.activity-meta {
+  margin: 0 0 8px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.activity-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 7px;
+}
+
+.activity-item {
+  display: grid;
+  grid-template-columns: 16px 1fr;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  padding: 7px;
+}
+
+.activity-icon {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.activity-title,
+.activity-detail {
+  margin: 0;
+}
+
+.activity-title {
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.activity-detail {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.activity-item.done .activity-icon,
+.activity-item.done .activity-title {
+  color: var(--ok);
+}
+
+.activity-item.current .activity-icon {
+  color: #d8dbe2;
+}
+
+.activity-item.error .activity-icon,
+.activity-item.error .activity-title {
+  color: var(--warn);
 }
 
 .terminal-wrap {
