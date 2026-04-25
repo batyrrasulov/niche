@@ -7,8 +7,15 @@ type ChatMessage = {
   citations?: Array<Record<string, unknown>>;
 };
 
+type FlowStep = {
+  id: string;
+  label: string;
+  status: "todo" | "current" | "done";
+};
+
 export function App() {
   const [tokenInput, setTokenInput] = useState(getToken());
+  const [sessionUser, setSessionUser] = useState<{ email: string; name: string } | null>(null);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
   const [threads, setThreads] = useState<Thread[]>([]);
@@ -29,6 +36,13 @@ export function App() {
   }, []);
 
   async function bootstrap() {
+    setError("");
+    try {
+      const me = await api.getMe();
+      setSessionUser({ email: me.email, name: me.name });
+    } catch {
+      setSessionUser(null);
+    }
     const ws = await api.listWorkspaces();
     setWorkspaces(ws);
     if (!ws.length) return;
@@ -62,6 +76,7 @@ export function App() {
   async function onSaveToken(e: FormEvent) {
     e.preventDefault();
     setToken(tokenInput.trim());
+    setError("");
     await bootstrap();
   }
 
@@ -210,14 +225,64 @@ export function App() {
     setToolLog((prev) => [...prev, `workflow:${workflowId} -> ${result.result.slice(0, 80)}`]);
   }
 
+  async function onInstallSkill(slug: string) {
+    const result = await api.installSkill(slug);
+    setToolLog((prev) => [...prev, `skill:${result.slug} -> ${result.status}`]);
+  }
+
   const appReady = useMemo(() => !!getToken(), [tokenInput]);
+  const flowSteps = useMemo<FlowStep[]>(() => {
+    return [
+      { id: "auth", label: "Auth session ready", status: appReady ? "done" : "current" },
+      {
+        id: "workspace",
+        label: "Workspace selected",
+        status: activeWorkspace ? "done" : appReady ? "current" : "todo"
+      },
+      {
+        id: "thread",
+        label: "Thread active",
+        status: activeThread ? "done" : activeWorkspace ? "current" : "todo"
+      },
+      {
+        id: "source",
+        label: "Knowledge source loaded",
+        status: sources.length ? "done" : activeWorkspace ? "current" : "todo"
+      },
+      {
+        id: "mcp",
+        label: "MCP connection online",
+        status: connections.length ? "done" : activeWorkspace ? "current" : "todo"
+      },
+      {
+        id: "workflow",
+        label: "Workflow ready",
+        status: workflows.length ? "done" : activeWorkspace ? "current" : "todo"
+      },
+      {
+        id: "chat",
+        label: "Chat orchestration stream",
+        status: messages.length ? "done" : activeThread ? "current" : "todo"
+      }
+    ];
+  }, [appReady, activeWorkspace, activeThread, sources.length, connections.length, workflows.length, messages.length]);
+
+  const runtimeHealth = streaming ? "Streaming" : appReady ? "Ready" : "Idle";
+  const artifacts = useMemo(
+    () => [
+      ...sources.slice(0, 3).map((source) => `source:${source.title}`),
+      ...connections.slice(0, 2).map((connection) => `mcp:${connection.name}`),
+      ...workflows.slice(0, 2).map((workflow) => `workflow:${workflow.name}`)
+    ],
+    [sources, connections, workflows]
+  );
 
   if (!appReady) {
     return (
       <main className="page">
-        <section className="card narrow">
-          <h1>NicheGPT</h1>
-          <p>Paste a valid bearer token from OAuth callback to start.</p>
+        <section className="panel narrow">
+          <h1>Niche</h1>
+          <p className="muted">Terminal-first orchestration with live runtime context</p>
           <form onSubmit={onSaveToken} className="stack">
             <input value={tokenInput} onChange={(e) => setTokenInput(e.target.value)} placeholder="Bearer token" />
             <button type="submit">Save token</button>
@@ -229,109 +294,229 @@ export function App() {
 
   return (
     <main className="page">
-      <header className="header">
+      <header className="topbar">
         <div>
-          <h1>NicheGPT Studio</h1>
-          <p>RAG + MCP actions + workflows</p>
+          <h1>Niche</h1>
+          <p>Agentic RAG + MCP tools + workflow runtime</p>
         </div>
-        <button onClick={onCreateWorkspace}>New Workspace</button>
+        <div className="top-meta">
+          <span className="pill">Auth: {sessionUser ? "Online" : "Token only"}</span>
+          <span className="pill">Runtime: {runtimeHealth}</span>
+        </div>
       </header>
 
       {error && <p className="error">{error}</p>}
 
-      <section className="grid">
-        <aside className="card">
-          <h2>Workspaces</h2>
-          {workspaces.map((ws) => (
-            <button
-              key={ws.id}
-              className={activeWorkspace?.id === ws.id ? "active" : ""}
-              onClick={async () => {
-                setActiveWorkspace(ws);
-                await loadWorkspace(ws.id);
-              }}
-            >
-              {ws.name}
-            </button>
-          ))}
-          <hr />
-          <h3>Threads</h3>
-          <button onClick={onCreateThread}>New Thread</button>
-          {threads.map((thread) => (
-            <button key={thread.id} className={activeThread?.id === thread.id ? "active" : ""} onClick={async () => {
-              setActiveThread(thread);
-              if (!activeWorkspace) return;
-              setMessages(await api.listMessages(activeWorkspace.id, thread.id) as ChatMessage[]);
-            }}>
-              {thread.title}
-            </button>
-          ))}
+      <section className="layout">
+        <aside className="panel">
+          <section>
+            <h2>Session</h2>
+            <ul className="kv">
+              <li>
+                <span>User</span>
+                <strong>{sessionUser?.email ?? "not signed in"}</strong>
+              </li>
+              <li>
+                <span>Profile</span>
+                <strong>{sessionUser?.name ?? "none"}</strong>
+              </li>
+              <li>
+                <span>Workspace</span>
+                <strong>{activeWorkspace?.name ?? "none"}</strong>
+              </li>
+              <li>
+                <span>Thread</span>
+                <strong>{activeThread?.title ?? "none"}</strong>
+              </li>
+              <li>
+                <span>Gateway</span>
+                <strong>{connections.length ? "running" : "stopped"}</strong>
+              </li>
+              <li>
+                <span>Catalog</span>
+                <strong>{sources.length ? `${sources.length} sources` : "local only"}</strong>
+              </li>
+            </ul>
+          </section>
+
+          <section>
+            <h2>Active Runtime</h2>
+            <div className="group">
+              <h3>Plugins</h3>
+              <ul className="list">
+                <li>{connections.length ? "mcp-runtime" : "none"}</li>
+              </ul>
+            </div>
+            <div className="group">
+              <h3>Skills</h3>
+              <ul className="list">
+                {(skills.length ? skills.slice(0, 4).map((skill) => skill.slug) : ["none"]).map((entry) => (
+                  <li key={entry}>{entry}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="group">
+              <h3>MCP Connectors</h3>
+              <ul className="list">
+                {(connections.length ? connections.map((connection) => connection.name) : ["none"]).map((entry) => (
+                  <li key={entry}>{entry}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="group">
+              <h3>Subagents</h3>
+              <ul className="list">
+                {(workflows.length ? workflows.map((workflow) => workflow.name) : ["none"]).map((entry) => (
+                  <li key={entry}>{entry}</li>
+                ))}
+              </ul>
+            </div>
+          </section>
         </aside>
 
-        <section className="card">
-          <h2>Chat</h2>
-          <div className="messages">
+        <section className="terminal-wrap">
+          <div className="terminal">
+            <p className="line sys">Relay-style operator console online.</p>
             {messages.map((message, i) => (
-              <article key={i} className={`bubble ${message.role}`}>
-                <strong>{message.role}</strong>
-                <p>{message.content}</p>
-                {message.citations && message.citations.length > 0 && (
-                  <div className="citations">
-                    {message.citations.map((item, idx) => (
-                      <span key={idx}>{String(item.title || "Source")}</span>
-                    ))}
-                  </div>
-                )}
-              </article>
+              <div key={i}>
+                <p className={`line ${message.role === "user" ? "cmd" : "ok"}`}>
+                  {message.role === "user" ? "you@studio$" : "niche@runtime"} {message.content}
+                </p>
+                {message.citations?.length ? (
+                  <p className="line sys">
+                    citations: {message.citations.map((item) => String(item.title || "source")).join(", ")}
+                  </p>
+                ) : null}
+              </div>
+            ))}
+            {toolLog.map((line, idx) => (
+              <p key={`tool-${idx}`} className="line warn">
+                {line}
+              </p>
             ))}
           </div>
-          <form onSubmit={onSendMessage} className="stack">
-            <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Ask with your data..." />
-            <button type="submit" disabled={streaming}>{streaming ? "Streaming..." : "Send"}</button>
+          <form onSubmit={onSendMessage} className="cmd-form">
+            <span className="prompt">niche@studio:~$</span>
+            <input
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="Type command or ask with your data..."
+            />
+            <button type="submit" disabled={streaming}>
+              {streaming ? "Running" : "Run"}
+            </button>
           </form>
         </section>
 
-        <aside className="card">
-          <h2>Sources</h2>
-          <div className="row">
-            <button onClick={onAddTextSource}>Add Text</button>
-            <button onClick={onAddUrlSource}>Add URL</button>
-          </div>
-          <ul>{sources.map((s) => <li key={s.id}>{s.title}</li>)}</ul>
+        <aside className="panel">
+          <section>
+            <h2>Flow Progress</h2>
+            <ol className="steps">
+              {flowSteps.map((step) => (
+                <li key={step.id} className={step.status === "done" ? "done" : step.status === "current" ? "current" : ""}>
+                  {step.label}
+                </li>
+              ))}
+            </ol>
+          </section>
 
-          <h2>MCP</h2>
-          <button onClick={onAddConnection}>Add Connection</button>
-          {connections.map((connection) => (
-            <div key={connection.id} className="mini">
-              <strong>{connection.name}</strong>
-              <p>{connection.server_url}</p>
-              <div className="row">
-                <button onClick={() => onDiscover(connection)}>Discover</button>
-                <button onClick={() => onInvoke(connection)}>Invoke</button>
+          <section>
+            <h2>Artifacts</h2>
+            <ul className="list">
+              {(artifacts.length ? artifacts : ["none"]).map((artifact) => (
+                <li key={artifact}>{artifact}</li>
+              ))}
+            </ul>
+          </section>
+
+          <section>
+            <h2>Quick Commands</h2>
+            <div className="quick">
+              <button onClick={onCreateWorkspace}>/workspace new</button>
+              <button onClick={onCreateThread}>/thread new</button>
+              <button onClick={onAddTextSource}>/source add text</button>
+              <button onClick={onAddUrlSource}>/source add url</button>
+              <button onClick={onAddConnection}>/mcp connect</button>
+              <button onClick={onCreateWorkflow}>/workflow create</button>
+              <button onClick={() => setPrompt("Summarize the current workspace context and sources.")}>/chat summarize</button>
+            </div>
+          </section>
+
+          <section>
+            <h2>Workspaces</h2>
+            <ul className="list">
+              {workspaces.map((ws) => (
+                <li key={ws.id}>
+                  <button
+                    className={activeWorkspace?.id === ws.id ? "active block" : "block"}
+                    onClick={async () => {
+                      setActiveWorkspace(ws);
+                      await loadWorkspace(ws.id);
+                    }}
+                  >
+                    {ws.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section>
+            <h2>Threads</h2>
+            <ul className="list">
+              {threads.map((thread) => (
+                <li key={thread.id}>
+                  <button
+                    className={activeThread?.id === thread.id ? "active block" : "block"}
+                    onClick={async () => {
+                      setActiveThread(thread);
+                      if (!activeWorkspace) return;
+                      setMessages((await api.listMessages(activeWorkspace.id, thread.id)) as ChatMessage[]);
+                    }}
+                  >
+                    {thread.title}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section>
+            <h2>MCP</h2>
+            {connections.map((connection) => (
+              <div key={connection.id} className="mini">
+                <strong>{connection.name}</strong>
+                <p className="muted">{connection.server_url}</p>
+                <div className="row">
+                  <button onClick={() => onDiscover(connection)}>Discover</button>
+                  <button onClick={() => onInvoke(connection)}>Invoke</button>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </section>
 
-          <h2>Skills</h2>
-          {skills.map((skill) => (
-            <div key={skill.slug} className="mini">
-              <strong>{skill.name}</strong>
-              <p>{skill.description}</p>
-              <button onClick={() => api.installSkill(skill.slug)}>Install</button>
-            </div>
-          ))}
+          <section>
+            <h2>Skills</h2>
+            {skills.map((skill) => (
+              <div key={skill.slug} className="mini">
+                <strong>{skill.name}</strong>
+                <p className="muted">{skill.description}</p>
+                <button onClick={() => onInstallSkill(skill.slug)}>Install</button>
+              </div>
+            ))}
+          </section>
 
-          <h2>Workflows</h2>
-          <button onClick={onCreateWorkflow}>Create Workflow</button>
-          {workflows.map((w) => (
-            <div key={w.id} className="mini">
-              <strong>{w.name}</strong>
-              <button onClick={() => onRunWorkflow(w.id)}>Run</button>
-            </div>
-          ))}
-
-          <h2>Action Log</h2>
-          <ul>{toolLog.map((line, idx) => <li key={idx}>{line}</li>)}</ul>
+          <section>
+            <h2>Workflows</h2>
+            {workflows.map((workflow) => (
+              <div key={workflow.id} className="mini">
+                <strong>{workflow.name}</strong>
+                <div className="row">
+                  <button onClick={() => onRunWorkflow(workflow.id)}>Run</button>
+                </div>
+              </div>
+            ))}
+          </section>
         </aside>
       </section>
     </main>
