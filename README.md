@@ -23,7 +23,7 @@ Niche is an agentic workspace where you can ground answers in your own sources, 
 
 https://github.com/user-attachments/assets/30744226-2023-4f88-8f11-b38fe0caa4ae
 
-## What Niche Is (Non-Technical)
+## What Niche Is
 
 If ChatGPT is a smart assistant, Niche is your operations room. You bring your own context (docs, links, workflows), and Niche turns it into a guided decision flow: what matters, what is risky, what should happen next, and which tools should run. Instead of jumping across tabs and tools, you stay in one place and move from question to action with a clear audit trail.
 
