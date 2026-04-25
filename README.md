@@ -5,7 +5,7 @@ Niche is an agentic workspace where you can ground answers in your own sources, 
 ## Table of Contents
 
 - [Walkthrough](#walkthrough)
-- [What Niche Is (Non-Technical)](#what-niche-is-non-technical)
+- [What Niche Is](#what-niche-is-non-technical)
 - [Core Capabilities](#core-capabilities)
 - [Tech Stack](#tech-stack)
 - [System Design](#system-design)
