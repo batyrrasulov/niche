@@ -21,7 +21,7 @@ Niche is an agentic workspace where you can ground answers in your own sources, 
 
 ## Walkthrough
 
-Add your own walkthrough media file here when ready.
+https://github.com/user-attachments/assets/30744226-2023-4f88-8f11-b38fe0caa4ae
 
 ## What Niche Is (Non-Technical)
 
