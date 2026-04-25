@@ -372,7 +372,7 @@ export function App() {
 
         <section className="terminal-wrap">
           <div className="terminal">
-            <p className="line sys">Operator console online.</p>
+            <p className="line sys motto">Niche is not just an "LLM wrapper". Try it by asking below.</p>
             {messages.map((message, i) => (
               <div key={i}>
                 <p className={`line ${message.role === "user" ? "cmd" : "ok"}`}>
@@ -396,7 +396,7 @@ export function App() {
             <input
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Type command or ask with your data..."
+              placeholder="Type here"
             />
             <button type="submit" disabled={streaming}>
               {streaming ? "Running" : "Run"}

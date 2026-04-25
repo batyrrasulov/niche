@@ -144,6 +144,17 @@ button:hover {
   border-color: #596070;
 }
 
+input:hover {
+  border-color: var(--line-2);
+}
+
+input:focus,
+input:focus-visible {
+  outline: none;
+  border-color: #4a4f5c;
+  box-shadow: none;
+}
+
 button.active {
   border-color: #6b8ce6;
 }
@@ -260,6 +271,36 @@ button.active {
 
 .line.cmd {
   color: var(--text);
+}
+
+.line.motto {
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  border-right: 2px solid rgba(236, 238, 242, 0.7);
+  padding-right: 3px;
+  text-shadow: 0 0 8px rgba(204, 239, 216, 0.25);
+  animation: nicheType 2.6s steps(68, end), nicheBlink 900ms step-end infinite;
+}
+
+@keyframes nicheType {
+  from {
+    width: 0;
+  }
+  to {
+    width: 68ch;
+  }
+}
+
+@keyframes nicheBlink {
+  0%,
+  50% {
+    border-right-color: rgba(236, 238, 242, 0.7);
+  }
+  50.01%,
+  100% {
+    border-right-color: transparent;
+  }
 }
 
 .cmd-form {
