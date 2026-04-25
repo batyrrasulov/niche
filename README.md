@@ -25,8 +25,7 @@ Add your own walkthrough media file here when ready.
 
 ## What Niche Is (Non-Technical)
 
-If ChatGPT is a smart assistant, Niche is your operations room.  
-You bring your own context (docs, links, workflows), and Niche turns it into a guided decision flow: what matters, what is risky, what should happen next, and which tools should run. Instead of jumping across tabs and tools, you stay in one place and move from question to action with a clear audit trail.
+If ChatGPT is a smart assistant, Niche is your operations room. You bring your own context (docs, links, workflows), and Niche turns it into a guided decision flow: what matters, what is risky, what should happen next, and which tools should run. Instead of jumping across tabs and tools, you stay in one place and move from question to action with a clear audit trail.
 
 ## Core Capabilities
 
