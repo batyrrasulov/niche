@@ -1,6 +1,6 @@
 # Niche
 
-Niche is an agentic AI studio for workspace-grounded chat, MCP tool execution, and reusable workflow runtime in a Relay-inspired terminal interface.
+Niche is an agentic AI studio for workspace-grounded chat, MCP tool execution, and reusable workflow runtime in a terminal-first interface.
 
 ## Table of Contents
 
@@ -42,9 +42,7 @@ Core runtime flow:
 
 ## Repository and Deployment Mapping
 
-- Current local workspace path is `/Users/batyr.rasulov/nichegpt`.
 - Personal GitHub publish target for this branch history is [`batyrrasulov/niche`](https://github.com/batyrrasulov/niche).
-- Existing historical repository [`batyrrasulov/nichegpt`](https://github.com/batyrrasulov/nichegpt) is preserved separately.
 - Production-style infra naming now uses `niche` identifiers (`/opt/niche`, `/var/www/niche`, `niche-api.service`, `niche.conf`).
 
 ## Tech Stack
@@ -58,7 +56,7 @@ Core runtime flow:
 ## Project Structure
 
 - `backend/` API routes, models, services, and worker stubs
-- `frontend/` Relay-inspired terminal UI and API client
+- `frontend/` terminal-first UI and API client
 - `infra/` local compose and production deployment artifacts
 - `docs/` architecture contracts, runbooks, migration notes
 
@@ -131,8 +129,7 @@ Canonical variables:
 
 Compatibility:
 
-- Legacy `NICHEGPT_*` variables are still accepted by backend settings.
-- Frontend reads/writes `niche-token` and auto-migrates legacy `nichegpt-token`.
+- Frontend uses `niche-token` for session storage.
 
 ## End-to-End Usage Flow
 

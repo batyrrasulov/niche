@@ -4,17 +4,10 @@ export type Source = { id: number; title: string; source_type: string; metadata_
 export type MCPConnection = { id: number; name: string; server_url: string; tools_json: Array<Record<string, unknown>> };
 
 const TOKEN_KEY = "niche-token";
-const LEGACY_TOKEN_KEY = "nichegpt-token";
 const API = "/api/v1";
 
 export function getToken(): string {
-  const nextToken = localStorage.getItem(TOKEN_KEY);
-  if (nextToken) return nextToken;
-  const legacyToken = localStorage.getItem(LEGACY_TOKEN_KEY);
-  if (legacyToken) {
-    localStorage.setItem(TOKEN_KEY, legacyToken);
-  }
-  return legacyToken || "";
+  return localStorage.getItem(TOKEN_KEY) || "";
 }
 
 export function setToken(token: string): void {

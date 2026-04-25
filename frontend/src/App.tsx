@@ -376,7 +376,7 @@ export function App() {
 
         <section className="terminal-wrap">
           <div className="terminal">
-            <p className="line sys">Relay-style operator console online.</p>
+            <p className="line sys">Operator console online.</p>
             {messages.map((message, i) => (
               <div key={i}>
                 <p className={`line ${message.role === "user" ? "cmd" : "ok"}`}>

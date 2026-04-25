@@ -1,6 +1,6 @@
 # History Preservation Strategy
 
-Niche is currently built in `/Users/batyr.rasulov/nichegpt` to preserve clean, app-specific history from the first commit.
+Niche is currently built in the local project workspace to preserve clean, app-specific history from the first commit.
 
 ## Policy
 
@@ -11,7 +11,7 @@ Niche is currently built in `/Users/batyr.rasulov/nichegpt` to preserve clean, a
 
 ## Publish steps
 
-1. Initialize `git` in `/Users/batyr.rasulov/nichegpt`.
+1. Initialize `git` in the project root.
 2. Commit baseline scaffold.
 3. Commit each feature set as separate logical commits.
 4. Add personal GitHub remote.
