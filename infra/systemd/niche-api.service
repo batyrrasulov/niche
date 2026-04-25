@@ -1,13 +1,13 @@
 [Unit]
-Description=NicheGPT API
+Description=Niche API
 After=network.target
 
 [Service]
 Type=simple
 User=www-data
-WorkingDirectory=/opt/nichegpt/backend
-EnvironmentFile=/opt/nichegpt/.env
-ExecStart=/opt/nichegpt/backend/.venv/bin/uvicorn app:app --host 0.0.0.0 --port 8100
+WorkingDirectory=/opt/niche/backend
+EnvironmentFile=/opt/niche/.env
+ExecStart=/opt/niche/backend/.venv/bin/uvicorn app:app --host 0.0.0.0 --port 8100
 Restart=always
 RestartSec=2
 NoNewPrivileges=true
