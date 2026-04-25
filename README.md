@@ -1,63 +1,195 @@
 # Niche
 
-Niche is an agentic AI studio for workspace-grounded chat, MCP tool execution, and reusable workflow runtime in a terminal-first interface.
+Niche is an agentic workspace where you can ground answers in your own sources, run MCP actions, and orchestrate repeatable workflows from one terminal-first interface.
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [Architecture](#architecture)
-- [Repository and Deployment Mapping](#repository-and-deployment-mapping)
+- [Walkthrough](#walkthrough)
+- [What Niche Is (Non-Technical)](#what-niche-is-non-technical)
+- [Core Capabilities](#core-capabilities)
 - [Tech Stack](#tech-stack)
+- [System Design](#system-design)
+- [API Catalog](#api-catalog)
+- [Data Schema Flow](#data-schema-flow)
 - [Project Structure](#project-structure)
 - [Local Setup](#local-setup)
 - [Environment Variables](#environment-variables)
 - [End-to-End Usage Flow](#end-to-end-usage-flow)
 - [Verification Checklist](#verification-checklist)
 - [Troubleshooting](#troubleshooting)
+- [References](#references)
 
-## Overview
+## Walkthrough
 
-Niche supports:
+- Demo video file: [`walkthrough.mov`](./walkthrough.mov)
+
+<video src="./walkthrough.mov" controls muted playsinline width="100%"></video>
+
+## What Niche Is (Non-Technical)
+
+If ChatGPT is a smart assistant, Niche is your operations room.  
+You bring your own context (docs, links, workflows), and Niche turns it into a guided decision flow: what matters, what is risky, what should happen next, and which tools should run. Instead of jumping across tabs and tools, you stay in one place and move from question to action with a clear audit trail.
+
+## Core Capabilities
 
 - Authenticated user sessions via OAuth or development tokens.
-- Workspace and thread management for persistent conversation context.
-- Source ingestion for retrieval-grounded answers.
-- MCP connection discovery and tool invocation.
-- Skills catalog and workflow execution endpoints.
-- Server-sent event streaming for live orchestration feedback.
-
-## Architecture
-
-Core runtime flow:
-
-1. User authenticates and selects a workspace/thread.
-2. User prompt enters orchestration pipeline in `server/routes/threads.py`.
-3. Pipeline runs staged execution:
-   - Retrieval stage (workspace sources)
-   - Optional web stage
-   - Optional MCP stage
-   - Synthesis stage
-4. Backend streams `tool_event`, `token`, and `final` SSE events.
-5. Frontend renders events in the terminal panel and runtime sidebars.
-
-## Repository and Deployment Mapping
-
-- Personal GitHub publish target for this branch history is [`batyrrasulov/niche`](https://github.com/batyrrasulov/niche).
-- Production-style infra naming now uses `niche` identifiers (`/opt/niche`, `/var/www/niche`, `niche-api.service`, `niche.conf`).
+- Workspace and thread context for persistent conversational state.
+- Source ingestion (`text` and `url`) for grounded responses.
+- MCP connection lifecycle: connect, discover tools, invoke actions.
+- Skill catalog and install flow for reusable behaviors.
+- Workflow create/run path for repeatable execution.
+- Streaming orchestration events (`tool_event`, `token`, `final`) into the UI.
 
 ## Tech Stack
 
-- Server: FastAPI, SQLAlchemy, Pydantic, SSE
-- Client: React, TypeScript, Vite
-- Data: SQLite by default, Postgres/pgvector via Docker Compose
-- Auth: OAuth (Google/GitHub) + JWT
-- Infra: Docker Compose, Nginx, systemd
+### Server
+
+- **Framework:** FastAPI
+- **Data layer:** SQLAlchemy ORM + Pydantic schemas
+- **Auth:** JWT + OAuth provider flows
+- **Retrieval:** source scoring via lightweight keyword matching
+- **Tool runtime:** MCP HTTP adapter (`/tools`, `/invoke`)
+- **Streaming:** Server-Sent Events (SSE)
+
+### Client
+
+- **Framework:** React + TypeScript + Vite
+- **Interaction model:** terminal-first command and activity panels
+- **State model:** workspace/thread/resource/tool/workflow state in one app shell
+- **Transport:** REST + streaming fetch for chat orchestration
+
+### Data + Runtime
+
+- **Default local DB:** SQLite (`niche.db`)
+- **Container option:** Postgres/pgvector via Docker Compose
+- **Operational configs:** Nginx + systemd definitions under `system/`
+
+## System Design
+
+### Runtime Logic Design
+
+```mermaid
+flowchart LR
+  user[User] --> client[Client UI]
+  client --> api[FastAPI API]
+  api --> auth[Auth Layer]
+  api --> orchestrator[Chat Orchestrator]
+  orchestrator --> retrieval[Retrieval Stage]
+  orchestrator --> web[Web Context Stage]
+  orchestrator --> mcp[MCP Action Stage]
+  orchestrator --> synthesis[Synthesis Stage]
+  synthesis --> sse[SSE Stream]
+  sse --> client
+  api --> db[(SQLite/Postgres)]
+```
+
+### Chat Sequence (Request to Streamed Result)
+
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant C as Client
+  participant A as API
+  participant R as Retrieval
+  participant W as Web Search
+  participant M as MCP
+  participant D as DB
+
+  U->>C: Enter prompt and run
+  C->>A: POST /threads/{id}/messages
+  A->>D: Persist user message
+  A->>R: Retrieve top grounded sources
+  R-->>A: Citations + excerpts
+  A->>W: Optional web enrichment
+  W-->>A: External context (or empty)
+  A->>M: Optional MCP tool action
+  M-->>A: Tool output
+  A->>D: Persist assistant message
+  A-->>C: SSE tool_event/token/final
+  C-->>U: Live activity + final response
+```
+
+## API Catalog
+
+All core endpoints are under `/api/v1` unless noted.
+
+### Auth
+
+- `POST /auth/dev-token`
+- `GET /auth/me`
+- `GET /auth/oauth/google/start`
+- `GET /auth/oauth/github/start`
+- `GET /auth/oauth/{provider}/callback`
+
+### Workspaces + Threads
+
+- `GET /workspaces`
+- `POST /workspaces`
+- `GET /workspaces/{workspaceId}`
+- `GET /workspaces/{workspaceId}/threads`
+- `POST /workspaces/{workspaceId}/threads`
+- `GET /workspaces/{workspaceId}/threads/{threadId}/messages`
+- `POST /workspaces/{workspaceId}/threads/{threadId}/messages` (SSE)
+
+### Sources
+
+- `GET /workspaces/{workspaceId}/sources`
+- `POST /workspaces/{workspaceId}/sources`
+- `POST /workspaces/{workspaceId}/sources/upload`
+
+### MCP
+
+- `GET /workspaces/{workspaceId}/mcp/connections`
+- `POST /workspaces/{workspaceId}/mcp/connections`
+- `POST /workspaces/{workspaceId}/mcp/connections/{connectionId}/discover`
+- `POST /workspaces/{workspaceId}/mcp/connections/{connectionId}/invoke`
+
+### Skills + Workflows
+
+- `GET /skills/catalog`
+- `POST /skills/install`
+- `GET /workspaces/{workspaceId}/agents/workflows`
+- `POST /workspaces/{workspaceId}/agents/workflows`
+- `POST /workspaces/{workspaceId}/agents/workflows/{workflowId}/run`
+
+### Operational
+
+- `GET /health`
+- `GET /metrics`
+
+## Data Schema Flow
+
+Primary entities and relationships:
+
+```mermaid
+flowchart TD
+  User --> Workspace
+  Workspace --> Thread
+  Thread --> Message
+  Workspace --> SourceDocument
+  Workspace --> MCPConnection
+  Workspace --> AgentWorkflow
+  SkillTemplate --> Workspace
+```
+
+### Core Tables
+
+- `users`: identity, provider metadata
+- `workspaces`: user-owned project context
+- `threads`: per-workspace conversation streams
+- `messages`: user/assistant content + citations + tool events
+- `source_documents`: ingested text/url content
+- `mcp_connections`: MCP endpoints and discovered tools
+- `agent_workflows`: reusable step definitions
+- `skill_templates`: installable skill catalog
 
 ## Project Structure
 
-- `server/` API routes, models, services, and worker stubs
-- `src/` terminal-first UI and API client
-- `system/` local compose and production deployment artifacts
+- `server/` API routes, models, services, worker stubs
+- `src/` UI, API client, styling, and terminal UX logic
+- `system/` Docker Compose, Nginx, and systemd deployment artifacts
+- `walkthrough.mov` demo recording embedded in README
+- `.github/workflows/` CI workflow definitions
 
 ## Local Setup
 
@@ -67,13 +199,13 @@ Core runtime flow:
 cp .env.example .env
 ```
 
-### 2) Start dependencies
+### 2) Start dependencies (optional for Postgres mode)
 
 ```bash
 docker compose -f system/docker-compose.yml up -d postgres
 ```
 
-If Docker is not running, the server can still run against local SQLite defaults.
+If Docker is not running, server defaults to SQLite.
 
 ### 3) Start server
 
@@ -93,25 +225,16 @@ npm install
 npm run dev
 ```
 
-Frontend URL: `http://localhost:5173`  
-Server health: `http://127.0.0.1:8100/health`
+- Client URL: `http://localhost:5173`
+- Server health: `http://127.0.0.1:8100/health`
 
-### 5) Acquire a token
-
-Development token:
+### 5) Get a development token
 
 ```bash
-curl -X POST "http://localhost:8100/api/v1/auth/dev-token?email=you@example.com&name=You"
+curl -X POST "http://localhost:8100/api/v1/auth/dev-token?email=dev@niche.com&name=Niche%20Dev"
 ```
 
-OAuth start endpoints:
-
-- `/api/v1/auth/oauth/google/start`
-- `/api/v1/auth/oauth/github/start`
-
 ## Environment Variables
-
-Canonical variables:
 
 - `NICHE_ENV`
 - `NICHE_API_PORT`
@@ -126,65 +249,70 @@ Canonical variables:
 - `NICHE_OAUTH_REDIRECT_BASE`
 - `NICHE_RATE_LIMIT_PER_MINUTE`
 
-Compatibility:
-
-- Frontend uses `niche-token` for session storage.
+Client session storage key: `niche-token`.
 
 ## End-to-End Usage Flow
 
-1. Save a bearer token in the UI.
-2. Create a workspace and thread.
-3. Add at least one source (`text` or `url`).
-4. Add an MCP connection and run tool discovery.
-5. Install at least one skill from catalog.
-6. Create and run a workflow.
-7. Send a chat request and watch orchestration stream in terminal:
-   - retrieval
-   - web search
-   - MCP action
-   - synthesis
+1. Save a bearer token in the client.
+2. Create/select workspace and thread.
+3. Add grounded sources (text/url).
+4. Discover MCP tools and invoke actions.
+5. Install a skill from catalog.
+6. Run a workflow.
+7. Submit prompt and watch activity + streamed response with citations.
 
 ## Verification Checklist
 
-Use this sequence after major changes:
-
 ```bash
-# client
+# client build
 cd src && npm run build
 
-# server syntax
+# server syntax checks
 cd ../server && source .venv/bin/activate && python -m compileall .
 
 # server health
 curl http://127.0.0.1:8100/health
 ```
 
-Integration smoke should validate:
+Recommended smoke checks:
 
-- auth token creation
-- workspace/thread lifecycle
-- source ingestion
+- auth token + `/auth/me`
+- workspace/thread create + reload
+- source ingest (text + url)
 - MCP discover + invoke
 - skill install
 - workflow run
-- chat SSE (`tool_event`, `token`, `final`)
+- chat SSE stream
 
 ## Troubleshooting
 
-### Server not reachable on `8100`
+### Server on `8100` not reachable
 
-- Ensure the server process is running with `uvicorn`.
-- Check `.env` for invalid DB URL.
-- If Docker is down and Postgres URL is configured, switch to SQLite or start Docker.
+- Confirm `uvicorn` is running in `server/`.
+- Check `.env` values, especially `NICHE_DATABASE_URL`.
+- If using Postgres mode, ensure Docker service is up.
 
-### Client not reachable on `5173`
+### Client on `5173` not reachable
 
 - Restart `npm run dev` in `src/`.
-- Confirm no port conflict.
-- Access via `http://localhost:5173` (hostname), not strict `127.0.0.1`, if local resolver settings differ.
+- Check for port conflicts (`5173` in use by another process).
 
-### MCP discover/invoke fails
+### Token saves but UI shows `User not found`
 
-- Verify MCP server URL and token.
-- Confirm server exposes `/tools` and `/invoke` endpoints expected by `services_mcp.py`.
-- Re-run discover before invoke when `tools_json` is empty.
+- Generate a fresh token after DB resets.
+- Clear stale local token:
+  - `localStorage.removeItem("niche-token")`
+
+### MCP discover/invoke issues
+
+- Validate MCP endpoint responds on `/tools` and `/invoke`.
+- Re-run discover before invoke to refresh tool list.
+- Check activity log lines for stage-by-stage error details.
+
+## References
+
+- Model Context Protocol (latest spec): [modelcontextprotocol.io/specification/latest](https://modelcontextprotocol.io/specification/latest)
+- Model Context Protocol (GitHub org): [github.com/modelcontextprotocol](https://github.com/modelcontextprotocol)
+- JSON-RPC 2.0 (protocol basis for MCP): [jsonrpc.org/specification](https://www.jsonrpc.org/specification)
+- RAG foundational paper (Lewis et al., 2020): [arxiv.org/abs/2005.11401](https://arxiv.org/abs/2005.11401)
+- RAG survey (Gao et al., 2023): [arxiv.org/abs/2312.10997](https://arxiv.org/abs/2312.10997)
