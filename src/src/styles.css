@@ -399,6 +399,34 @@ button.active {
   margin-top: 8px;
 }
 
+.entity-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  padding: 8px;
+  margin-top: 8px;
+}
+
+.entity-title {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.entity-subtitle {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.entity-actions {
+  margin-top: 8px;
+}
+
 .muted {
   color: var(--muted);
   margin: 4px 0 0;

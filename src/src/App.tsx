@@ -270,6 +270,7 @@ export function App() {
   const runtimeHealth = streaming ? "Streaming" : appReady ? "Ready" : "Idle";
   const authOnline = Boolean(sessionUser);
   const runtimeUp = runtimeHealth === "Ready" || runtimeHealth === "Streaming";
+  const showMotto = messages.length === 0 && toolLog.length === 0 && !streaming && !prompt.trim();
   const artifacts = useMemo(
     () => [
       ...sources.slice(0, 3).map((source) => `source:${source.title}`),
@@ -396,7 +397,7 @@ export function App() {
 
         <section className="terminal-wrap">
           <div className="terminal">
-            <p className="line sys motto">Niche is not just an "LLM wrapper". Try it by asking below.</p>
+            {showMotto ? <p className="line sys motto">Niche is not just an "LLM wrapper". Try it by asking below.</p> : null}
             {messages.map((message, i) => (
               <div key={i}>
                 <p className={`line ${message.role === "user" ? "cmd" : "ok"}`}>
@@ -518,10 +519,10 @@ export function App() {
           <section>
             <h2>MCP</h2>
             {connections.map((connection) => (
-              <div key={connection.id} className="mini">
-                <strong>{connection.name}</strong>
-                <p className="muted">{connection.server_url}</p>
-                <div className="row">
+              <div key={connection.id} className="entity-card">
+                <p className="entity-title">{connection.name}</p>
+                <p className="entity-subtitle">{connection.server_url}</p>
+                <div className="row entity-actions">
                   <button onClick={() => onDiscover(connection)}>Discover</button>
                   <button onClick={() => onInvoke(connection)}>Invoke</button>
                 </div>
@@ -532,9 +533,9 @@ export function App() {
           <section>
             <h2>Skills</h2>
             {skills.map((skill) => (
-              <div key={skill.slug} className="mini">
-                <strong>{skill.name}</strong>
-                <p className="muted">{skill.description}</p>
+              <div key={skill.slug} className="entity-card">
+                <p className="entity-title">{skill.name}</p>
+                <p className="entity-subtitle">{skill.description}</p>
                 <button onClick={() => onInstallSkill(skill.slug)}>Install</button>
               </div>
             ))}
@@ -543,9 +544,9 @@ export function App() {
           <section>
             <h2>Workflows</h2>
             {workflows.map((workflow) => (
-              <div key={workflow.id} className="mini">
-                <strong>{workflow.name}</strong>
-                <div className="row">
+              <div key={workflow.id} className="entity-card">
+                <p className="entity-title">{workflow.name}</p>
+                <div className="row entity-actions">
                   <button onClick={() => onRunWorkflow(workflow.id)}>Run</button>
                 </div>
               </div>
