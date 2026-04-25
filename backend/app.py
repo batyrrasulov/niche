@@ -9,9 +9,9 @@ from routes import api_router, health_router
 from settings import get_settings
 
 settings = get_settings()
-REQUEST_COUNTER = Counter("nichegpt_http_requests_total", "HTTP requests", ["path", "method", "status"])
+REQUEST_COUNTER = Counter("niche_http_requests_total", "HTTP requests", ["path", "method", "status"])
 
-app = FastAPI(title="NicheGPT API", version="0.1.0")
+app = FastAPI(title="Niche API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,

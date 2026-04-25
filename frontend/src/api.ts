@@ -3,11 +3,18 @@ export type Thread = { id: number; workspace_id: number; title: string };
 export type Source = { id: number; title: string; source_type: string; metadata_json: Record<string, unknown> };
 export type MCPConnection = { id: number; name: string; server_url: string; tools_json: Array<Record<string, unknown>> };
 
-const TOKEN_KEY = "nichegpt-token";
+const TOKEN_KEY = "niche-token";
+const LEGACY_TOKEN_KEY = "nichegpt-token";
 const API = "/api/v1";
 
 export function getToken(): string {
-  return localStorage.getItem(TOKEN_KEY) || "";
+  const nextToken = localStorage.getItem(TOKEN_KEY);
+  if (nextToken) return nextToken;
+  const legacyToken = localStorage.getItem(LEGACY_TOKEN_KEY);
+  if (legacyToken) {
+    localStorage.setItem(TOKEN_KEY, legacyToken);
+  }
+  return legacyToken || "";
 }
 
 export function setToken(token: string): void {
