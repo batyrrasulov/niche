@@ -1,6 +1,6 @@
 # History Preservation Strategy
 
-NicheGPT is built directly in `/Users/batyr.rasulov/nichegpt` to preserve clean, app-specific history from the first commit.
+Niche is currently built in `/Users/batyr.rasulov/nichegpt` to preserve clean, app-specific history from the first commit.
 
 ## Policy
 

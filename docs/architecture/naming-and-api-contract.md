@@ -1,10 +1,10 @@
-# NicheGPT Naming and API Contract
+# Niche Naming and API Contract
 
 ## Canonical names
 
-- Product name: `NicheGPT`
-- Backend service ID: `nichegpt-api`
-- Frontend app ID: `nichegpt-web`
+- Product name: `Niche`
+- Backend service ID: `niche-api`
+- Frontend app ID: `niche-web`
 - API prefix: `/api/v1`
 - Health endpoint: `/health`
 - Metrics endpoint: `/metrics`
