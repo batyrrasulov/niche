@@ -13,6 +13,32 @@ type FlowStep = {
   status: "todo" | "current" | "done";
 };
 
+function logStamp(): string {
+  return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+}
+
+function formatToolEvent(payload: Record<string, unknown>): string[] {
+  const eventType = String(payload.type ?? "event");
+  const status = String(payload.status ?? "running");
+  const metadata = payload.metadata as Record<string, unknown> | undefined;
+  const prefix =
+    status === "completed" ? "[done]" : status === "failed" ? "[fail]" : status === "skipped" ? "[skip]" : "[run]";
+
+  let line = `${prefix} ${eventType}`;
+  if (metadata) {
+    const details = Object.entries(metadata)
+      .map(([key, value]) => `${key}=${String(value)}`)
+      .join(", ");
+    if (details) line += ` (${details})`;
+  }
+
+  const lines = [line];
+  if (payload.error) {
+    lines.push(`[fail] ${eventType} error: ${String(payload.error)}`);
+  }
+  return lines;
+}
+
 export function App() {
   const [tokenInput, setTokenInput] = useState(getToken());
   const [sessionUser, setSessionUser] = useState<{ email: string; name: string } | null>(null);
@@ -29,6 +55,10 @@ export function App() {
   const [streaming, setStreaming] = useState(false);
   const [toolLog, setToolLog] = useState<string[]>([]);
   const [error, setError] = useState("");
+
+  function appendLog(message: string) {
+    setToolLog((prev) => [...prev, `[${logStamp()}] ${message}`]);
+  }
 
   useEffect(() => {
     if (!getToken()) return;
@@ -81,8 +111,7 @@ export function App() {
   }
 
   async function onCreateWorkspace() {
-    const name = promptUser("Workspace name");
-    if (!name) return;
+    const name = promptUser("Workspace name") || `Workspace ${workspaces.length + 1}`;
     const ws = await api.createWorkspace(name);
     const next = [ws, ...workspaces];
     setWorkspaces(next);
@@ -92,7 +121,7 @@ export function App() {
 
   async function onCreateThread() {
     if (!activeWorkspace) return;
-    const title = promptUser("Thread title") || "New thread";
+    const title = promptUser("Thread title") || `Thread ${threads.length + 1}`;
     const thread = await api.createThread(activeWorkspace.id, title);
     setThreads([thread, ...threads]);
     setActiveThread(thread);
@@ -101,17 +130,17 @@ export function App() {
 
   async function onAddTextSource() {
     if (!activeWorkspace) return;
-    const title = promptUser("Source title");
-    const body = promptUser("Paste content");
-    if (!title || !body) return;
+    const title = promptUser("Source title") || "Sample Product Brief";
+    const body =
+      promptUser("Paste content") ||
+      "Niche pilot metrics: 64% assistant adoption, 19% reduction in response times, and strongest impact in support operations.";
     const source = await api.addSource(activeWorkspace.id, { source_type: "text", title, body });
     setSources([source, ...sources]);
   }
 
   async function onAddUrlSource() {
     if (!activeWorkspace) return;
-    const url = promptUser("URL to ingest");
-    if (!url) return;
+    const url = promptUser("URL to ingest") || "https://developer.mozilla.org/en-US/docs/Web/HTTP/Status";
     const source = await api.addSource(activeWorkspace.id, { source_type: "url", title: url, url });
     setSources([source, ...sources]);
   }
@@ -123,7 +152,7 @@ export function App() {
     setPrompt("");
     setMessages((prev) => [...prev, { role: "user", content }, { role: "assistant", content: "" }]);
     setStreaming(true);
-    setToolLog([]);
+    setToolLog([`[${logStamp()}] [run] chat -> orchestrating response`]);
 
     const res = await fetch(
       `/api/v1/workspaces/${activeWorkspace.id}/threads/${activeThread.id}/messages`,
@@ -166,7 +195,8 @@ export function App() {
           });
         }
         if (event === "tool_event") {
-          setToolLog((prev) => [...prev, `${payload.type}: ${payload.status}`]);
+          const lines = formatToolEvent(payload as Record<string, unknown>);
+          setToolLog((prev) => [...prev, ...lines.map((line) => `[${logStamp()}] ${line}`)]);
         }
         if (event === "final") {
           setMessages((prev) => {
@@ -186,31 +216,39 @@ export function App() {
 
   async function onAddConnection() {
     if (!activeWorkspace) return;
-    const name = promptUser("Connection name");
-    const server_url = promptUser("MCP server URL");
-    if (!name || !server_url) return;
+    const name = promptUser("Connection name") || "local-ops-gateway";
+    const server_url = promptUser("MCP server URL") || "http://127.0.0.1:8765";
+    appendLog(`[run] mcp_connect -> creating ${name}`);
     const created = await api.addMcpConnection(activeWorkspace.id, { name, server_url });
     setConnections((prev) => [created, ...prev]);
+    appendLog(`[done] mcp_connect -> connected ${name}`);
   }
 
   async function onDiscover(connection: MCPConnection) {
     if (!activeWorkspace) return;
+    appendLog(`[run] mcp_discover -> ${connection.name}`);
     const updated = await api.discoverMcpTools(activeWorkspace.id, connection.id);
     setConnections((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+    appendLog(`[done] mcp_discover -> ${updated.tools_json.length} tools discovered`);
   }
 
   async function onInvoke(connection: MCPConnection) {
     if (!activeWorkspace) return;
-    const toolName = promptUser("Tool name to invoke");
-    if (!toolName) return;
-    const result = await api.invokeMcpTool(activeWorkspace.id, connection.id, toolName, {});
-    setToolLog((prev) => [...prev, `invoke:${toolName} -> ${result.status}`]);
+    const discoveredTools = connection.tools_json ?? [];
+    const firstTool = discoveredTools.find((tool) => typeof tool?.name === "string") as
+      | { name: string }
+      | undefined;
+    const toolName = firstTool?.name || "echo_status";
+    appendLog(`[run] mcp_invoke -> ${toolName}`);
+    const result = await api.invokeMcpTool(activeWorkspace.id, connection.id, toolName, {
+      query: prompt.trim() || "runtime status check"
+    });
+    appendLog(`[done] mcp_invoke -> ${toolName} (${result.status})`);
   }
 
   async function onCreateWorkflow() {
     if (!activeWorkspace) return;
-    const name = promptUser("Workflow name");
-    if (!name) return;
+    const name = promptUser("Workflow name") || `workflow-${workflows.length + 1}`;
     await api.createWorkflow(activeWorkspace.id, {
       name,
       description: "Generated in app",
@@ -221,13 +259,17 @@ export function App() {
 
   async function onRunWorkflow(workflowId: number) {
     if (!activeWorkspace) return;
+    appendLog(`[run] workflow -> ${workflowId}`);
     const result = await api.runWorkflow(activeWorkspace.id, workflowId, "Run workflow from UI");
-    setToolLog((prev) => [...prev, `workflow:${workflowId} -> ${result.result.slice(0, 80)}`]);
+    const compact = result.result.replace(/\s+/g, " ").slice(0, 120);
+    appendLog(`[done] workflow -> ${workflowId}`);
+    appendLog(`[info] workflow output -> ${compact}`);
   }
 
   async function onInstallSkill(slug: string) {
+    appendLog(`[run] skill_install -> ${slug}`);
     const result = await api.installSkill(slug);
-    setToolLog((prev) => [...prev, `skill:${result.slug} -> ${result.status}`]);
+    appendLog(`[done] skill_install -> ${result.slug} (${result.status})`);
   }
 
   const appReady = useMemo(() => !!getToken(), [tokenInput]);
@@ -271,6 +313,7 @@ export function App() {
   const authOnline = Boolean(sessionUser);
   const runtimeUp = runtimeHealth === "Ready" || runtimeHealth === "Streaming";
   const showMotto = messages.length === 0 && toolLog.length === 0 && !streaming && !prompt.trim();
+  const userPromptLabel = `${sessionUser?.email ?? "user"}$`;
   const artifacts = useMemo(
     () => [
       ...sources.slice(0, 3).map((source) => `source:${source.title}`),
@@ -283,9 +326,9 @@ export function App() {
     if (toolLog.length > 0) {
       return toolLog.slice(-6).reverse().map((line) => {
         const lowered = line.toLowerCase();
-        const status = lowered.includes("failed")
+        const status = lowered.includes("[fail]")
           ? "error"
-          : lowered.includes("completed") || lowered.includes("installed") || lowered.includes("running")
+          : lowered.includes("[done]")
             ? "done"
             : "current";
         return { title: line, detail: status === "done" ? "Done" : status === "error" ? "Needs attention" : "In progress", status };
@@ -401,7 +444,7 @@ export function App() {
             {messages.map((message, i) => (
               <div key={i}>
                 <p className={`line ${message.role === "user" ? "cmd" : "ok"}`}>
-                  {message.role === "user" ? "you@studio$" : "niche@runtime"} {message.content}
+                  {message.role === "user" ? userPromptLabel : "niche@runtime"} {message.content}
                 </p>
                 {message.citations?.length ? (
                   <p className="line sys">
@@ -411,7 +454,16 @@ export function App() {
               </div>
             ))}
             {toolLog.map((line, idx) => (
-              <p key={`tool-${idx}`} className="line warn">
+              <p
+                key={`tool-${idx}`}
+                className={`line ${
+                  line.includes("[fail]")
+                    ? "warn"
+                    : line.includes("[done]")
+                      ? "ok"
+                      : "sys"
+                }`}
+              >
                 {line}
               </p>
             ))}

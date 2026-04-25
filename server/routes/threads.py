@@ -23,7 +23,7 @@ def list_threads(workspace_id: int, user: User = Depends(get_current_user), db: 
     )
     if not workspace:
         raise HTTPException(status_code=404, detail="Workspace not found")
-    return db.query(Thread).filter(Thread.workspace_id == workspace_id).order_by(Thread.updated_at.desc()).all()
+    return db.query(Thread).filter(Thread.workspace_id == workspace_id).order_by(Thread.created_at.desc()).all()
 
 
 @router.post("", response_model=ThreadOut)
@@ -96,7 +96,7 @@ async def chat_stream(
             tool_events.append(
                 {
                     "type": "web_search",
-                    "status": "completed" if web_results else "no_results",
+                    "status": "completed",
                     "metadata": {"results": len(web_results)},
                 }
             )
@@ -142,24 +142,41 @@ async def chat_stream(
         tool_events.append({"type": "mcp_action", "status": "skipped"})
 
     grounded = [c for c in citations if c["score"] > 0]
-    grounded_lines = (
-        "\n".join([f"- {c['title']} (score={c['score']})" for c in grounded]) if grounded else "- No direct matches."
+    top_grounded = grounded[:2]
+    highlight_lines = (
+        "\n".join([f"- {item['title']}: {item['excerpt'][:140]}..." for item in top_grounded])
+        if top_grounded
+        else "- No strongly matching internal sources were found for this prompt."
     )
-    web_lines = (
-        "\n".join([f"- {item.get('title', 'result')} ({item.get('url', 'no-url')})" for item in web_results])
-        if web_results
-        else "- No web context."
-    )
-    mcp_line = f"- MCP result keys: {', '.join(sorted(mcp_snapshot.keys()))}" if mcp_snapshot else "- No MCP output."
+
+    risk_lines = []
+    if not top_grounded:
+        risk_lines.append("- Internal grounding confidence is low for this specific request.")
+    if not web_results:
+        risk_lines.append("- No strong external web corroboration was retrieved in this run.")
+    if not mcp_snapshot:
+        risk_lines.append("- MCP output is limited, so operational data may be incomplete.")
+    if not risk_lines:
+        risk_lines.append("- No critical blockers detected from the current context.")
+
+    action_lines = [
+        "- Validate top assumptions against the highest-scoring source excerpts.",
+        "- Convert the top risk into one measurable owner and deadline.",
+        "- Run one follow-up query to narrow uncertainty before execution.",
+    ]
+    if web_results:
+        action_lines.append("- Cross-check with one external reference before final sign-off.")
+    if mcp_snapshot:
+        action_lines.append("- Use MCP output to confirm runtime/tooling readiness before launch.")
+
     answer = (
-        "Niche answer based on orchestrated stages.\n\n"
-        f"Question: {payload.content}\n\n"
-        "Grounded sources:\n"
-        f"{grounded_lines}\n\n"
-        "Web context:\n"
-        f"{web_lines}\n\n"
-        "MCP context:\n"
-        f"{mcp_line}\n"
+        "Here is a concise readiness summary:\n\n"
+        "Highlights\n"
+        f"{highlight_lines}\n\n"
+        "Key risks\n"
+        f"{chr(10).join(risk_lines)}\n\n"
+        "Recommended next actions\n"
+        f"{chr(10).join(action_lines[:4])}"
     )
     tool_events.append({"type": "synthesis", "status": "completed"})
 
