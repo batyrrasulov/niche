@@ -1,6 +1,8 @@
 # Niche
 
-Niche is an agentic workspace where you can ground answers in your own sources, run MCP actions, and orchestrate repeatable workflows from one terminal-first interface.
+Niche is an agentic workspace where you can ground answers in your own sources, run MCP actions, and orchestrate repeatable workflows from one terminal-first interface. 
+
+Also, check out the new or future version of this project here: https://github.com/batyrrasulov/mabel.
 
 ## Table of Contents
 
